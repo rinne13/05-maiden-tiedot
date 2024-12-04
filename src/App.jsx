@@ -1,23 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
 const App = () => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [weather, setWeather] = useState(null);
 
   const api_key = import.meta.env.VITE_OPENWEATHERMAP_API_KEY;
 
-console.log(api_key); 
-
+  console.log(api_key);
 
   // Обработчик для поля ввода
   const handleInputChange = (event) => {
     setQuery(event.target.value);
-    setSelectedCountry(null);
-    setWeather(null);
+
+    fetchFilteredCountries(event.target.value);
+
+    console.log(countries);
+    if (countries.length === 1) {
+      handleShowCountry(countries[0]);
+    } else {
+      setSelectedCountry(null);
+      setWeather(null);
+    }
   };
+
+  function fetchFilteredCountries(searchString) {
+    if (searchString) {
+      axios
+        .get(`https://studies.cs.helsinki.fi/restcountries/api/all`)
+        .then((response) => {
+          const filteredCountries = response.data.filter((country) =>
+            country.name.common
+              .toLowerCase()
+              .includes(searchString.toLowerCase())
+          );
+          setCountries(filteredCountries);
+          if (filteredCountries.length == 1) {
+            fetchWeather(filteredCountries[0].capital);
+          }
+        })
+        .catch((error) =>
+          console.error("Error with connecting the data", error)
+        );
+    } else {
+      setCountries([]);
+    }
+  }
 
   // Функция для запроса к API стран
   useEffect(() => {
@@ -30,7 +60,9 @@ console.log(api_key);
           );
           setCountries(filteredCountries);
         })
-        .catch((error) => console.error('Ошибка при получении данных:', error));
+        .catch((error) =>
+          console.error("Error with connecting the data", error)
+        );
     } else {
       setCountries([]);
     }
@@ -44,12 +76,17 @@ console.log(api_key);
 
   // Функция для запроса погоды
   const fetchWeather = (capital) => {
+    console.log("capital");
+    console.log(capital);
     axios
       .get(
         `https://api.openweathermap.org/data/2.5/weather?q=${capital}&units=metric&appid=${api_key}`
       )
-      .then((response) => setWeather(response.data))
-      .catch((error) => console.error('Error getting weather data ', error));
+      .then((response) => {
+        console.log(response.data);
+        setWeather(response.data);
+      })
+      .catch((error) => console.error("Error getting weather data ", error));
   };
 
   return (
@@ -61,22 +98,20 @@ console.log(api_key);
         value={query}
         onChange={handleInputChange}
       />
-
       {countries.length > 10 && (
         <p>Too many matches, please specify your search further.</p>
       )}
-
+      _{" "}
       {countries.length <= 10 && countries.length > 1 && (
         <ul>
           {countries.map((country) => (
             <li key={country.cca3}>
-              {country.name.common}{' '}
+              {country.name.common}{" "}
               <button onClick={() => handleShowCountry(country)}>Show</button>
             </li>
           ))}
         </ul>
       )}
-
       {selectedCountry && (
         <div>
           <h2>{selectedCountry.name.common}</h2>
@@ -107,7 +142,6 @@ console.log(api_key);
           )}
         </div>
       )}
-
       {countries.length === 1 && !selectedCountry && (
         <div>
           <h2>{countries[0].name.common}</h2>
@@ -124,6 +158,18 @@ console.log(api_key);
             alt={`Flag of ${countries[0].name.common}`}
             width="150"
           />
+
+          {weather && (
+            <div>
+              <h3>Weather in {countries[0].capital}</h3>
+              <p>Temperature: {weather.main.temp} °C</p>
+              <p>Wind: {weather.wind.speed} m/s</p>
+              <img
+                src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@2x.png`}
+                alt="Weather icon"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
